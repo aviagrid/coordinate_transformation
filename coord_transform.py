@@ -1,4 +1,4 @@
-from math import pi, sin, sqrt, cos
+from math import pi, sin, sqrt, cos, asin
 import numpy as np
 
 
@@ -138,6 +138,102 @@ class CoordTransform:
             
         if alt_m > 10000:
             raise ValueError('Максимальная высота точки 10"000 метров')
-        
-
     
+    
+    def georaph_to_rsc(self, sk_type: str) -> tuple:
+        """Функция преобразования географических координат в
+        прямоугольные пространственные координаты
+
+        Args:
+            sk_type (str): 
+                'PZ' - с/к ПЗ-90.11
+                'WGS' - с/к WGS-84
+                'SK' - с/к СК-42
+
+        Returns:
+            tuple: (x_rsc, y_rsc, z_rsc)
+        """
+        lat_geograph = self.lat_grad
+        long_geograph = self.long_grad
+        alt_geograph = self.alt_m
+        
+        if sk_type == 'PZ':
+            a_ellips = self.a_ellips_pz[0]
+            eccent_ellips = self.square_eccent_pz[0]
+            
+            n_ellips = a_ellips / sqrt(1 - eccent_ellips * (sin(lat_geograph) ** 2))
+        
+        elif sk_type == 'WGS':
+            a_ellips = self.a_ellips_wgs[0]
+            eccent_ellips = self.square_eccent_wgs[0]
+            
+            n_ellips = a_ellips / sqrt(1 - eccent_ellips * (sin(lat_geograph) ** 2))
+        
+        elif sk_type == 'SK':
+            a_ellips = self.a_ellips_sk[0]
+            eccent_ellips = self.square_eccent_sk[0]
+            
+            n_ellips = a_ellips / sqrt(1 - eccent_ellips * (sin(lat_geograph) ** 2))
+        
+        x_rsc = (n_ellips + self.alt_m) * cos(lat_geograph) * cos(long_geograph)
+        y_rsc = (n_ellips + self.alt_m) * cos(lat_geograph) * sin(long_geograph)
+        z_rsc = (((1 - eccent_ellips) * n_ellips) + alt_geograph) * sin(lat_geograph)
+        
+        return x_rsc, y_rsc, z_rsc
+    
+    
+    def rsc_to_geograph(self, x_rsc: float, y_rsc: float, z_rsc: float, sk_type: str) -> tuple:
+        """Функция преобразования прямоугольных пространственных координат в
+        географиеские координаты
+
+        Args:
+            x_rsc (float): положение по Х, рад.
+            y_rsc (float): положение по Y, рад.
+            z_rsc (float): положение по Z, рад.
+            sk_type (str): 
+                'PZ' - с/к ПЗ-90.11
+                'WGS' - с/к WGS-84
+                'SK' - с/к СК-42
+
+        Returns:
+            tuple: (lat рад., long рад., alt м.)
+        """
+        d_help = sqrt((x_rsc ** 2) + (y_rsc ** 2))
+        if sk_type == 'PZ':
+            a_ellips = self.a_ellips_pz[0]
+            eccent_ellips = self.square_eccent_pz[0]
+            
+        elif sk_type == 'WGS':
+            a_ellips = self.a_ellips_wgs[0]
+            eccent_ellips = self.square_eccent_wgs[0]
+            
+        elif sk_type == 'SK':
+            a_ellips = self.a_ellips_sk[0]
+            eccent_ellips = self.square_eccent_sk[0]
+            
+        if d_help == 0:
+            lat_geograph = (pi/2) * (z_rsc/abs(z_rsc))
+            long_geograph = 0
+            alt_geograph = z_rsc * sin(lat_geograph) - a_ellips * sqrt(1 - eccent_ellips * (sin(lat_geograph) ** 2))
+        
+        else:
+           l_a_help = abs(asin(y_rsc / d_help))
+           
+           if y_rsc < 0 and x_rsc > 0:
+               long_geograph = (2 * pi) - l_a_help  
+           
+           elif y_rsc < 0 and x_rsc < 0:
+               long_geograph = pi + l_a_help
+               
+           elif y_rsc > 0 and x_rsc < 0:
+               long_geograph = pi - l_a_help
+               
+           elif y_rsc > 0 and x_rsc > 0:
+               long_geograph = l_a_help
+               
+           elif y_rsc == 0 and x_rsc > 0:
+               long_geograph = 0
+               
+           elif y_rsc == 0 and x_rsc < 0:
+               long_geograph = pi
+            
