@@ -182,7 +182,7 @@ class CoordTransform:
         return x_rsc, y_rsc, z_rsc
     
     
-    def rsc_to_geograph(self, x_rsc: float, y_rsc: float, z_rsc: float, sk_type: str) -> tuple:
+    def rsc_to_geograph(self, x_rsc: float, y_rsc: float, z_rsc: float, sk_type: str, stop_val: float = 0.0004) -> tuple:
         """Функция преобразования прямоугольных пространственных координат в
         географиеские координаты
 
@@ -236,4 +236,23 @@ class CoordTransform:
                
            elif y_rsc == 0 and x_rsc < 0:
                long_geograph = pi
-            
+               
+           if z_rsc == 0:
+               lat_geograph = 0
+               alt_geograph = d_help - a_ellips
+           else:
+               r_help = sqrt((x_rsc ** 2) + (y_rsc ** 2) + (z_rsc ** 2))
+               c_help = asin(z_rsc / r_help)
+               p_help = (eccent_ellips * a_ellips) / (2 * r_help)
+               s1_help = 0
+               d_stop = 1
+               while d_stop <= stop_val:
+                   b_help = c_help + s1_help
+                   s2_help = asin((p_help * sin(2 * b_help)) / sqrt(1 - eccent_ellips * (sin(b_help) ** 2)))
+                   d_stop = abs(s2_help - s1_help)
+                   s1_help = s2_help
+               lat_geograph = b_help
+               alt_geograph = d_help * cos(lat_geograph) + z_rsc * sin(lat_geograph) - a_ellips * sqrt(1 - eccent_ellips * (sin(lat_geograph) ** 2))
+               
+               return lat_geograph, long_geograph, alt_geograph
+               
