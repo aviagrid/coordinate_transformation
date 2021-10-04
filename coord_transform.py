@@ -44,7 +44,7 @@ class CoordTransform:
         omega_z_sk_pz = 3.850439 * (10 ** -6)
         
         # ----- Матрицы СК-42 в ПЗ-90.11 ----- #
-        self.koef_sk_pz = 1 + ((-0.228) * (10 ** -6))
+        self.koef_sk_pz = np.array([[1 + ((-0.228) * (10 ** -6))]], dtype=np.float64)
         
         self.matrix_trans_sk_pz = np.array([[1, - omega_z_sk_pz, omega_y_sk_pz],
                                             [omega_z_sk_pz, 1, - omega_x_sk_pz],
@@ -55,7 +55,7 @@ class CoordTransform:
                                             [-79.778]], dtype=np.float64)
         
         # ----- Матрицы ПЗ-90.11 в СК-42 ----- #
-        self.koef_pz_sk = 1 - ((-0.228) * (10 ** -6))
+        self.koef_pz_sk = np.array([[1 - ((-0.228) * (10 ** -6))]], dtype=np.float64)
         
         self.matrix_trans_pz_sk = np.array([[1, omega_z_sk_pz, - omega_y_sk_pz],
                                             [- omega_z_sk_pz, 1, omega_x_sk_pz],
@@ -71,7 +71,7 @@ class CoordTransform:
         omega_z_wgs_pz = 2.041066 * (10 ** -8)
         
         # ----- Матрицы WGS-84 в ПЗ-90.11 ----- #
-        self.koef_wgs_pz = 1 + ((-0.008) * (10 ** -6))
+        self.koef_wgs_pz = np.array([[1 + ((-0.008) * (10 ** -6))]], dtype=np.float64)
         
         self.matrix_trans_wgs_pz = np.array([[1, - omega_z_sk_pz, - omega_y_sk_pz],
                                              [omega_z_sk_pz, 1, - omega_x_sk_pz],
@@ -108,8 +108,7 @@ class CoordTransform:
             self.long_grad = self.long_grad[0] * (pi/180)
         
     
-    @staticmethod
-    def __data_checking(lat_grad: list, long_grad: list, alt_m: float):
+    def __data_checking(self, lat_grad: list, long_grad: list, alt_m: float):
         """Функция проверки введенных данных
 
         Args:
@@ -246,6 +245,7 @@ class CoordTransform:
                p_help = (eccent_ellips * a_ellips) / (2 * r_help)
                s1_help = 0
                d_stop = 1
+               b_help = c_help + s1_help
                while d_stop <= stop_val:
                    b_help = c_help + s1_help
                    s2_help = asin((p_help * sin(2 * b_help)) / sqrt(1 - eccent_ellips * (sin(b_help) ** 2)))
@@ -255,4 +255,27 @@ class CoordTransform:
                alt_geograph = d_help * cos(lat_geograph) + z_rsc * sin(lat_geograph) - a_ellips * sqrt(1 - eccent_ellips * (sin(lat_geograph) ** 2))
                
                return lat_geograph, long_geograph, alt_geograph
-               
+        
+        
+    def pz_to_wgs(self) -> tuple:
+        """Функция преобразования ПЗ-90.11 в WGS-84
+
+        Returns:
+            tuple: (lat_geograph град., long_geograph град., alt_geograph м.)
+        """
+        self.__data_checking(self.lat_grad, self.long_grad, self.alt_m)
+        self.__trans_to_dd_ddd()
+        x_rsc, y_rsc, z_rsc = self.georaph_to_rsc(sk_type='PZ')
+        coord_pz = np.array([[x_rsc],
+                             [y_rsc],
+                             [z_rsc]], dtype=np.float64)
+            
+        coord_wgs = np.dot(np.dot(self.koef_pz_wgs, self.matrix_trans_pz_wgs), coord_pz) + self.matrix_delta_pz_wgs
+        
+        x_rsc_out = coord_wgs[0][0]
+        y_rsc_out = coord_wgs[1][0]
+        z_rsc_out = coord_wgs[2][0]
+        
+        lat_geograph, long_geograph, alt_geograph = self.rsc_to_geograph(x_rsc_out, y_rsc_out, z_rsc_out, sk_type='WGS')
+        return lat_geograph, long_geograph, alt_geograph
+    
