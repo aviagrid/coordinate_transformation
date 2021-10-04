@@ -245,7 +245,7 @@ class CoordTransform:
                p_help = (eccent_ellips * a_ellips) / (2 * r_help)
                s1_help = 0
                d_stop = 1
-               b_help = c_help + s1_help
+               b_help = 0
                while d_stop <= stop_val:
                    b_help = c_help + s1_help
                    s2_help = asin((p_help * sin(2 * b_help)) / sqrt(1 - eccent_ellips * (sin(b_help) ** 2)))
