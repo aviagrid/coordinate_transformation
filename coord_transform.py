@@ -1,4 +1,4 @@
-from math import pi, sin, sqrt, cos, asin
+from math import pi, sin, sqrt, cos, asin, trunc
 import numpy as np
 
 
@@ -71,11 +71,11 @@ class CoordTransform:
         omega_z_wgs_pz = 2.041066 * (10 ** -8)
         
         # ----- Матрицы WGS-84 в ПЗ-90.11 ----- #
-        self.koef_wgs_pz = np.array([[1 + ((-0.008) * (10 ** -6))]], dtype=np.float64)
+        self.koef_wgs_pz = 1 + ((-0.008) * (10 ** -6))
         
-        self.matrix_trans_wgs_pz = np.array([[1, - omega_z_sk_pz, - omega_y_sk_pz],
-                                             [omega_z_sk_pz, 1, - omega_x_sk_pz],
-                                             [omega_y_sk_pz, omega_x_sk_pz, 1]], dtype=np.float64)
+        self.matrix_trans_wgs_pz = np.array([[1, - omega_z_wgs_pz, - omega_y_wgs_pz],
+                                             [omega_z_wgs_pz, 1, - omega_x_wgs_pz],
+                                             [omega_y_wgs_pz, omega_x_wgs_pz, 1]], dtype=np.float64)
         
         self.matrix_delta_wgs_pz = np.array([[-0.013],
                                              [0.106],
@@ -84,31 +84,66 @@ class CoordTransform:
         # ----- Матрицы ПЗ-90.11 в WGS-84 ----- #
         self.koef_pz_wgs = 1 - ((-0.008) * (10 ** -6))
         
-        self.matrix_trans_pz_wgs = np.array([[1, omega_z_sk_pz, omega_y_sk_pz],
-                                             [- omega_z_sk_pz, 1, omega_x_sk_pz],
-                                             [- omega_y_sk_pz, - omega_x_sk_pz, 1]], dtype=np.float64)
+        self.matrix_trans_pz_wgs = np.array([[1, omega_z_wgs_pz, omega_y_wgs_pz],
+                                             [- omega_z_wgs_pz, 1, omega_x_wgs_pz],
+                                             [- omega_y_wgs_pz, - omega_x_wgs_pz, 1]], dtype=np.float64)
         
         self.matrix_delta_pz_wgs = - np.array([[-0.013],
                                                [0.106],
                                                [0.022]], dtype=np.float64)
-    def __trans_to_dd_ddd(self):
+    
+    
+    
+    @staticmethod
+    def trans_to_dd_ddd(lat_grad, long_grad):
         """
         Функция преобразования формата (DD, MM, SS) в (DD.DDDD)
+        в радианах
         """
-        if len(self.lat_grad) == 3:
-            self.lat_grad = self.lat_grad[0] + self.lat_grad[1]/60 + self.lat_grad[2]/3600
-            self.lat_grad = self.lat_grad * (pi/180)
+        if len(lat_grad) == 3:
+            if lat_grad[0] > 0:
+                lat_rad = ((lat_grad[2] / 3600) + (lat_grad[1] / 60) + lat_grad[0]) * (pi / 180)
+            else:
+                lat_rad = (- (lat_grad[2] / 3600) - (lat_grad[1] / 60) + lat_grad[0]) * (pi / 180)
         else:
-            self.lat_grad = self.lat_grad[0] * (pi/180)
+            lat_rad = lat_grad[0] * (pi/180)
             
-        if len(self.long_grad) == 3:
-            self.long_grad = self.long_grad[0] + self.long_grad[1]/60 + self.long_grad[2]/3600
-            self.long_grad = self.long_grad * (pi/180)
+        if len(long_grad) == 3:
+            if long_grad[0] > 0:
+                long_rad = ((long_grad[2] / 3600) + (long_grad[1] / 60) + long_grad[0]) * (pi / 180)
+            else:
+                long_rad = (- (long_grad[2] / 3600) - (long_grad[1] / 60) + long_grad[0]) * (pi / 180)
         else:
-            self.long_grad = self.long_grad[0] * (pi/180)
+            long_rad = long_grad[0] * (pi/180)
+            
+        return lat_rad, long_rad
         
     
-    def __data_checking(self, lat_grad: list, long_grad: list, alt_m: float):
+    @staticmethod
+    def trans_to_ddmmss(lat_rad, long_rad):
+        """[summary]
+
+        Функция преобразования формата (DD.DDDD) в (DD, MM, SS)
+        в градусах
+        """
+        lat_grad = lat_rad * (180 / pi)
+        long_grad = long_rad * (180 / pi)
+        
+        lat_dd = trunc(lat_grad)
+        lat_mm = trunc((lat_grad - lat_dd) * 60)
+        lat_ss = ((lat_grad - lat_dd) * 60 - lat_mm) * 60
+        
+        long_dd = trunc(long_grad)
+        long_mm = trunc((long_grad - long_dd) * 60)
+        long_ss = ((long_grad - long_dd) * 60 - long_mm) * 60
+        
+        lat_out = [lat_dd, lat_mm, lat_ss]
+        long_out = [long_dd, long_mm, long_ss]
+        
+        return lat_out, long_out
+        
+    @staticmethod
+    def __data_checking(lat_grad: list, long_grad: list, alt_m: float):
         """Функция проверки введенных данных
 
         Args:
@@ -152,8 +187,9 @@ class CoordTransform:
         Returns:
             tuple: (x_rsc, y_rsc, z_rsc)
         """
-        lat_geograph = self.lat_grad
-        long_geograph = self.long_grad
+        self.__data_checking(self.lat_grad, self.long_grad, self.alt_m)
+        
+        lat_geograph, long_geograph = self.trans_to_dd_ddd(self.lat_grad, self.long_grad)
         alt_geograph = self.alt_m
         
         if sk_type == 'PZ':
@@ -181,7 +217,7 @@ class CoordTransform:
         return x_rsc, y_rsc, z_rsc
     
     
-    def rsc_to_geograph(self, x_rsc: float, y_rsc: float, z_rsc: float, sk_type: str, stop_val: float = 0.0004) -> tuple:
+    def rsc_to_geograph(self, x_rsc: float, y_rsc: float, z_rsc: float, sk_type: str, stop_val: float = 0.000001) -> tuple:
         """Функция преобразования прямоугольных пространственных координат в
         географиеские координаты
 
@@ -198,6 +234,8 @@ class CoordTransform:
             tuple: (lat рад., long рад., alt м.)
         """
         d_help = sqrt((x_rsc ** 2) + (y_rsc ** 2))
+        l_a_help = abs(asin(y_rsc / d_help))
+        
         if sk_type == 'PZ':
             a_ellips = self.a_ellips_pz[0]
             eccent_ellips = self.square_eccent_pz[0]
@@ -216,11 +254,9 @@ class CoordTransform:
             alt_geograph = z_rsc * sin(lat_geograph) - a_ellips * sqrt(1 - eccent_ellips * (sin(lat_geograph) ** 2))
         
         else:
-           l_a_help = abs(asin(y_rsc / d_help))
-           
            if y_rsc < 0 and x_rsc > 0:
                long_geograph = (2 * pi) - l_a_help  
-           
+            
            elif y_rsc < 0 and x_rsc < 0:
                long_geograph = pi + l_a_help
                
@@ -244,16 +280,19 @@ class CoordTransform:
                c_help = asin(z_rsc / r_help)
                p_help = (eccent_ellips * a_ellips) / (2 * r_help)
                s1_help = 0
-               d_stop = 1
-               b_help = 0
-               while d_stop <= stop_val:
+            
+               while True:
                    b_help = c_help + s1_help
                    s2_help = asin((p_help * sin(2 * b_help)) / sqrt(1 - eccent_ellips * (sin(b_help) ** 2)))
                    d_stop = abs(s2_help - s1_help)
-                   s1_help = s2_help
+                   if d_stop <= stop_val:
+                       break
+                   else:
+                       s1_help = s2_help
+                   
                lat_geograph = b_help
                alt_geograph = d_help * cos(lat_geograph) + z_rsc * sin(lat_geograph) - a_ellips * sqrt(1 - eccent_ellips * (sin(lat_geograph) ** 2))
-               
+        
                return lat_geograph, long_geograph, alt_geograph
         
         
@@ -263,9 +302,8 @@ class CoordTransform:
         Returns:
             tuple: (lat_geograph град., long_geograph град., alt_geograph м.)
         """
-        self.__data_checking(self.lat_grad, self.long_grad, self.alt_m)
-        self.__trans_to_dd_ddd()
         x_rsc, y_rsc, z_rsc = self.georaph_to_rsc(sk_type='PZ')
+    
         coord_pz = np.array([[x_rsc],
                              [y_rsc],
                              [z_rsc]], dtype=np.float64)
@@ -275,7 +313,46 @@ class CoordTransform:
         x_rsc_out = coord_wgs[0][0]
         y_rsc_out = coord_wgs[1][0]
         z_rsc_out = coord_wgs[2][0]
-        
-        lat_geograph, long_geograph, alt_geograph = self.rsc_to_geograph(x_rsc_out, y_rsc_out, z_rsc_out, sk_type='WGS')
-        return lat_geograph, long_geograph, alt_geograph
     
+        lat_geograph, long_geograph, alt_geograph = self.rsc_to_geograph(x_rsc_out, y_rsc_out, z_rsc_out, sk_type='WGS')
+        lat_grad, long_grad = self.trans_to_ddmmss(lat_geograph, long_geograph)
+        
+        return lat_grad, long_grad, alt_geograph
+    
+    def wgs_to_pz(self) -> tuple:
+        """Функция преобразования WGS-84 в ПЗ-90.11
+
+        Returns:
+            tuple: (lat_geograph град., long_geograph град., alt_geograph м.)
+        """
+        x_rsc, y_rsc, z_rsc = self.georaph_to_rsc(sk_type='WGS')
+    
+        coord_wgs = np.array([[x_rsc],
+                              [y_rsc],
+                              [z_rsc]], dtype=np.float64)
+            
+        coord_pz = np.dot(np.dot(self.koef_wgs_pz, self.matrix_trans_wgs_pz), coord_wgs) + self.matrix_delta_wgs_pz
+        
+        x_rsc_out = coord_pz[0][0]
+        y_rsc_out = coord_pz[1][0]
+        z_rsc_out = coord_pz[2][0]
+    
+        lat_geograph, long_geograph, alt_geograph = self.rsc_to_geograph(x_rsc_out, y_rsc_out, z_rsc_out, sk_type='PZ')
+        lat_grad, long_grad = self.trans_to_ddmmss(lat_geograph, long_geograph)
+        
+        return lat_grad, long_grad, alt_geograph
+        
+        
+lat_in_pz = [55, 44, 30.00]
+long_in_pz = [37, 13, 24.00]
+alt_in_pz = 143
+
+lat_in_wgs = [55, 44, 29.99441117160643]
+long_in_wgs = [37, 13, 23.9900493771313]
+alt_in_wgs = 142.03450031485409
+
+my_func1 = CoordTransform(lat_in_pz, long_in_pz, alt_in_pz)
+print(my_func1.pz_to_wgs())
+
+my_func2 = CoordTransform(lat_in_wgs, long_in_wgs, alt_in_wgs)
+print(my_func2.wgs_to_pz())
