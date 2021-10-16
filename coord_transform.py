@@ -102,19 +102,19 @@ class CoordTransform:
         """
         if len(lat_grad) == 3:
             if lat_grad[0] > 0:
-                lat_rad = ((lat_grad[2] / 3600) + (lat_grad[1] / 60) + lat_grad[0]) * (pi / 180)
+                lat_rad = round(((lat_grad[2] / 3600) + (lat_grad[1] / 60) + lat_grad[0]) * (pi / 180), 8)
             else:
-                lat_rad = (- (lat_grad[2] / 3600) - (lat_grad[1] / 60) + lat_grad[0]) * (pi / 180)
+                lat_rad = round((- (lat_grad[2] / 3600) - (lat_grad[1] / 60) + lat_grad[0]) * (pi / 180), 8)
         else:
-            lat_rad = lat_grad[0] * (pi/180)
+            lat_rad = round(lat_grad[0] * (pi/180), 8)
             
         if len(long_grad) == 3:
             if long_grad[0] > 0:
-                long_rad = ((long_grad[2] / 3600) + (long_grad[1] / 60) + long_grad[0]) * (pi / 180)
+                long_rad = round(((long_grad[2] / 3600) + (long_grad[1] / 60) + long_grad[0]) * (pi / 180), 8)
             else:
-                long_rad = (- (long_grad[2] / 3600) - (long_grad[1] / 60) + long_grad[0]) * (pi / 180)
+                long_rad = round((- (long_grad[2] / 3600) - (long_grad[1] / 60) + long_grad[0]) * (pi / 180), 8)
         else:
-            long_rad = long_grad[0] * (pi/180)
+            long_rad = round(long_grad[0] * (pi/180), 8)
             
         return lat_rad, long_rad
         
@@ -126,6 +126,9 @@ class CoordTransform:
         Функция преобразования формата (DD.DDDD) в (DD, MM, SS)
         в градусах
         """
+        lat_rad = round(lat_rad, 8)
+        long_rad = round(long_rad, 8)
+        
         lat_grad = lat_rad * (180 / pi)
         long_grad = long_rad * (180 / pi)
         
@@ -416,17 +419,4 @@ class CoordTransform:
         
         return lat_grad, long_grad, alt_geo
     
-    
-lat_in_pz = [55, 44, 30.00]
-long_in_pz = [37, 13, 23.99]
-alt_in_pz = 142
-
-lat_in_wgs = [55, 44, 29.87]
-long_in_wgs = [37, 13, 30.76]
-alt_in_wgs = 137
-
-my_func1 = CoordTransform(lat_in_wgs, long_in_wgs, alt_in_wgs)
-print(my_func1.sk_to_wgs())
-
-#my_func2 = CoordTransform(lat_in_wgs, long_in_wgs, alt_in_wgs)
-#print(my_func2.sk_to_pz())
+   
