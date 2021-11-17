@@ -38,7 +38,7 @@ class CoordTransform:
         self.square_eccent_sk = ((2*self.a_compr_sk[0]) - (self.a_compr_sk[0] ** 2), )
         self.eccent_sk = (sqrt(self.square_eccent_sk[0]), )
         
-        # ----- Угловые коэффициенты СК-42, ПЗ-90.11 ----- #
+        # ----- Угловые коэффициенты СК-42, ПЗ-90.11 ---- #
         omega_x_sk_pz = 1.115071 * (10 ** -8)
         omega_y_sk_pz = 1.679685 * (10 ** -6)
         omega_z_sk_pz = 3.850439 * (10 ** -6)
