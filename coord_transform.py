@@ -20,7 +20,7 @@ class CoordTransform:
         self.long_grad = long_grad
         self.alt_m = alt_m
         
-        # ----- Параметры элипсоида ПЗ-90.11 ----- #
+        # ----- Параметры элипсоида ПЗ-90.11 ---- #
         self.a_ellips_pz = (6378136, )
         self.a_compr_pz = (1/298.25784, )
         self.square_eccent_pz = ((2*self.a_compr_pz[0]) - (self.a_compr_pz[0] ** 2), )
